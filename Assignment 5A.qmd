@@ -1,0 +1,29 @@
+---
+title: "Assignment 5A"
+author: "Khandker Qaiduzzaman"
+format: html
+editor: visual
+---
+
+# Objective
+
+The objective of this assignment is to tidy and transform airline arrival delay data and compare the performance of two airlines using percentage-based analysis both overall and across multiple cities.
+
+# Approach
+
+### Dataset description
+
+For this analysis, I am using airline arrival delay data for two airlines across five destination cities. The dataset contains counts of on-time and delayed flights, organized in a wide format where each city is represented as a separate column. I recreated this dataset in CSV format based on the table provided in the assignment image. This format preserves the original structure while allowing it to be imported into R for tidying and transformation. Below are the column descriptions:
+
+-   Airline: Name of the airline
+-   Status: Flight status (on-time or delayed)
+-   Cities: Destination cities represented as columns
+-   Values: Number of flights for each category
+
+### Anticipated Challenges
+
+The main anticipated challenges include handling missing airline values, converting the dataset from wide to long format, and ensuring accurate percentage calculations for both overall and city-level comparisons. Additionally, interpreting differences between aggregated and city-level results may be challenging and requires careful analysis.
+
+The dataset can be viewed here: <https://raw.githubusercontent.com/NafeesKhandker/Tidying-and-Transforming-Airlines-Data/refs/heads/main/Airlines_data.csv>
+
+### References:
