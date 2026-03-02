@@ -26,4 +26,261 @@ The main anticipated challenges include handling missing airline values, convert
 
 The dataset can be viewed here: <https://raw.githubusercontent.com/NafeesKhandker/Tidying-and-Transforming-Airlines-Data/refs/heads/main/Airlines_data.csv>
 
-### References:
+### Tidy and Transform Airline Arrival Delay Data
+
+To follow the grading rubrics, I will organize the codes in several sections as below:
+
+[***Submitted data file with count analysis:***]{.underline}
+
+The count analysis shows that for the AM WEST the highest count of on-time and delayed arrival was reported at Phoenix Airport, 4840 and 415 respectively. The lowest on-time and delayed arrival was reported for AM WEST was at Seattle, 201 and 61 respectively. For ALASKA, both the highest on-arrival (1841) and highest delay (305) was reported at Seattle. The lowest ALASKA on-arrival was reported at San Diego, 212 and the lowest delay was reported at Phoenix, 12.
+
+```{r}
+library(tidyverse)
+
+url <- "https://raw.githubusercontent.com/NafeesKhandker/Tidying-and-Transforming-Airlines-Data/refs/heads/main/Airlines_data.csv"
+
+df <- read_csv(file = url, show_col_types = FALSE, progress = FALSE)
+```
+
+[***Recreate File in Same Format as given, including missing data:***]{.underline}
+
+A pretty print of the dataset shows that the recreated dataset has the missing values exactly where the given image had. For an example, in the second row, there is null value (NA) under the airline name ALASKA, which resembles the empty cell of the given image. Same goes for the fifth row under the AM WEST airline name. Also, the third row has all nulls exactly matching with the empty cells of the given image.
+
+```{r}
+library(gt)
+
+df |>
+  gt()
+```
+
+[***Internet-accessible file location:***]{.underline}
+
+The dataset can be viewed here: <https://raw.githubusercontent.com/NafeesKhandker/Tidying-and-Transforming-Airlines-Data/refs/heads/main/Airlines_data.csv>
+
+[***Code to populate missing data:***]{.underline}
+
+The following code shows how to handle the missing data. At first, the first two column names were fixed with the column names "Airline" and "Status". In the next step, the fill() function is used to fill the missing airline names downward. Finally, the empty row(s) was eliminated.
+
+```{r}
+colnames(df)[1:2] <- c("Airline", "Status")
+
+df <- df %>% fill(Airline)
+
+df <- df %>% filter(!is.na(Status))
+
+df |>
+  gt()
+```
+
+[***Transformed data from wide to long format:***]{.underline}
+
+An excellent R function is pivot_longer that transforms the wide format data to long format. The cols vector is passed as the parameter providing the target column names. names_to is the parameter that tells what will be the name of the column name in the long format where as values_to parameter tells what will be the column name for the values.
+
+```{r}
+df <- df %>% pivot_longer(
+    cols = c("Los Angeles", "Phoenix", "San Diego", "San Francisco", "Seattle"),
+    names_to = "City",
+    values_to = "Count"
+  )
+df |>
+  gt()
+```
+
+[***Compare airlines overall:***]{.underline}
+
+This section provides the codes for on-time totals and percentages calculation by airlines.
+
+```{r}
+library(dplyr)
+library(tidyr)
+
+# Step 1: Filter for on-time flights and summarize totals
+on_time_df <- df %>%
+  filter(Status == "on time") %>%
+  group_by(Airline) %>%
+  summarise(
+    `Total Flights` = sum(Count),
+    .groups = "drop"
+  ) %>%
+  mutate(`Percentage (%)` = round((`Total Flights` / sum(`Total Flights`)) * 100, 2))
+
+# Step 2: Display table
+on_time_df %>%
+  gt() %>%
+  tab_header(
+    title = "Airline Performance Summary",
+    subtitle = "On-Time Flights Only"
+  ) %>%
+  cols_align(
+    align = "center",
+    -Airline
+  ) %>%
+  fmt_number(
+    columns = c(`Total Flights`),
+    decimals = 0
+  ) %>%
+  fmt_number(
+    columns = c(`Percentage (%)`),
+    decimals = 2
+  ) %>%
+  text_transform(
+    locations = cells_body(columns = c(`Percentage (%)`)),
+    fn = function(x) paste0(x, "%")
+  )
+```
+
+The airline performance summary table and barchart show that ALASKA had overall 3,256 on time flights. AM WEST had a total of 6,438 on time flights, making the percentage 66.41%, almost double of ALASKA's (33.59%).
+
+```{r}
+library(ggplot2)
+library(scales)
+
+# Prepare on-time summary data
+on_time_df <- df %>%
+  filter(Status == "on time") %>%
+  group_by(Airline) %>%
+  summarise(
+    Total_Flights = sum(Count),
+    .groups = "drop"
+  ) %>%
+  mutate(Percentage = round(Total_Flights / sum(Total_Flights) * 100, 2))
+
+# Beautiful bar chart with space above labels
+ggplot(on_time_df, aes(x = Airline, y = Total_Flights, fill = Airline)) +
+  geom_col(width = 0.6) +
+  geom_text(
+    aes(label = paste0("Total Flights = ", comma(Total_Flights), 
+                       "\nPercentage = ", Percentage, "%")),
+    vjust = -0.5, size = 4.5
+  ) +
+  labs(
+    title = "Airline Performance Summary (on time) by Airline",
+    x = "Airline",
+    y = "Total Flights"
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.25))) + 
+  theme_minimal(base_size = 13) +
+  theme(
+    panel.grid = element_blank(),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "none"
+  )
+```
+
+[***Compare cities overall:***]{.underline}
+
+This section provides the codes for on-time totals and percentages by airlines for 5 cities.
+
+```{r}
+# Step 1: Filter on-time flights and summarize by Airline and City
+city_df <- df %>%
+  filter(Status == "on time") %>%
+  group_by(City, Airline) %>%
+  summarise(
+    Total = sum(Count),
+    .groups = "drop"
+  ) %>%
+  group_by(City) %>%
+  mutate(
+    Percentage = round((Total / sum(Total)) * 100, 2)
+  ) %>%
+  ungroup()
+
+# Step 2: Convert to wide format
+wide_df <- city_df %>%
+  pivot_wider(
+    names_from = Airline,
+    values_from = c(Total, Percentage),
+    names_glue = "{Airline}_{.value}"
+  )
+
+# Step 3: Rename columns (clean display)
+wide_df <- wide_df %>%
+  rename(
+    City = City,
+    `ALASKA Flights` = ALASKA_Total,
+    `AM WEST Flights` = `AM WEST_Total`,
+    `ALASKA (%)` = ALASKA_Percentage,
+    `AM WEST (%)` = `AM WEST_Percentage`
+  )
+
+# Step 4: Display table
+wide_df %>%
+  gt() %>%
+  tab_header(
+    title = "Airline Arrival Performance by City",
+    subtitle = "On-Time Arrival Counts and Percentages"
+  ) %>%
+  cols_align(
+    align = "center",
+    -City
+  ) %>%
+  fmt_number(
+    columns = c(`ALASKA Flights`, `AM WEST Flights`),
+    decimals = 0
+  ) %>%
+  fmt_number(
+    columns = c(`ALASKA (%)`, `AM WEST (%)`),
+    decimals = 2
+  ) %>%
+  text_transform(
+    locations = cells_body(columns = c(`ALASKA (%)`, `AM WEST (%)`)),
+    fn = function(x) paste0(x, "%")
+  )
+```
+
+```{r}
+ggplot(city_df, aes(x = "", y = Total, fill = Airline)) +
+  geom_col(position = "dodge", width = 0.6) +
+  
+  geom_text(
+    aes(label = paste0(Percentage, "%\n(", comma(Total), ")")),
+    position = position_dodge(width = 0.6),
+    vjust = -0.5,
+    size = 2.5,
+    fontface = "bold"
+  ) +
+  
+  # Move city labels to bottom
+  facet_wrap(~ City, nrow = 1, strip.position = "bottom") +
+  
+  scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+  
+  labs(
+    title = "On-Time Arrival Comparison by City",
+    x = NULL,
+    y = "Total Flights",
+    fill = "Airline"
+  ) +
+  
+  theme_minimal(base_size = 13) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    
+    # Move strip labels outside and style them
+    strip.placement = "outside",
+    strip.text = element_text(face = "bold"),
+    
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "top"
+  )
+```
+
+[***Discrepancy description between comparing two airlines’ flight performances city-by-city and overall:***]{.underline}
+
+The overall comparison shows that AM WEST has a higher proportion of on-time flights (66.41%) compared to ALASKA (33.59%), suggesting that AM WEST performs better. However, when the data is analyzed by city, the results vary significantly. ALASKA outperforms AM WEST in cities such as San Francisco (61.12% vs 38.88%) and Seattle (90.16% vs 9.84%), while AM WEST performs better in Los Angeles, Phoenix, and San Diego.
+
+This discrepancy occurs because the distribution of flights across cities is uneven. AM WEST operates a large number of flights in Phoenix, where it has a very high on-time rate, which heavily influences the overall results. In contrast, ALASKA performs extremely well in Seattle but has fewer flights in cities where AM WEST dominates.
+
+This is an example of Simpson’s Paradox, where aggregated data suggests one conclusion, but subgroup analysis reveals a different pattern. It highlights the importance of analyzing data at multiple levels before drawing conclusions.
+
+### Conclusion
+
+The overall comparison suggests that AM WEST outperforms ALASKA in on-time arrivals; however, the city-by-city analysis reveals a more nuanced pattern where ALASKA performs better in several individual cities. This discrepancy indicates the presence of Simpson’s Paradox, where aggregated data can mask underlying trends within subgroups. The imbalance in flight distribution across cities, particularly AM WEST’s concentration in high-volume routes like Phoenix, skews the overall results. Therefore, performance should be evaluated at both the aggregate and city levels to avoid misleading conclusions.
+
+### References
+
+1.  OpenAI. (2026, March 1). *ChatGPT conversation on airline performance analysis using R* \[Large language model\]. ChatGPT. <https://chat.openai.com/>
+2.  OpenAI. (2026, March 1). *ChatGPT conversation on airline performance analysis and Simpson’s paradox* \[Large language model\]. ChatGPT. <https://chat.openai.com/>
